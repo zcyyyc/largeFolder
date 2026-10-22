@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Stop'
 $packageRoot = $PSScriptRoot
-$packageVersion = '1.0.0'
+$packageVersion = '1.1.0'
 $packageOutput = Join-Path $packageRoot 'dist'
 $packageStage = Join-Path $packageOutput ('stage-' + [Guid]::NewGuid().ToString('N'))
 $packageFiles = @('LargeFolder.exe', 'LargeFolder.exe.config', 'README.md', 'CHANGELOG.md', 'LICENSE', '使用说明.txt', 'docs\app-icon.png', 'docs\preview.svg')
