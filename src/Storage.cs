@@ -260,6 +260,54 @@ namespace LargeFolder
         // Set by DataStore. A started record is flushed to disk before any original is moved.
         public static string JournalDirectory { get; set; }
 
+        public static string[] GetDesktopDirectories()
+        {
+            return new string[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)
+            };
+        }
+
+        public static bool IsDesktopShortcut(string path)
+        {
+            return IsDesktopShortcut(path, GetDesktopDirectories());
+        }
+
+        internal static bool IsDesktopShortcut(string path, IEnumerable<string> desktopDirectories)
+        {
+            try {
+                string candidate = CanonicalPath(path);
+                string extension = System.IO.Path.GetExtension(candidate);
+                if ((!String.Equals(extension, ".lnk", StringComparison.OrdinalIgnoreCase) &&
+                    !String.Equals(extension, ".url", StringComparison.OrdinalIgnoreCase)) || !File.Exists(candidate)) return false;
+                string parent = System.IO.Path.GetDirectoryName(candidate);
+                foreach (string desktop in desktopDirectories ?? new string[0])
+                    if (!String.IsNullOrWhiteSpace(desktop) && String.Equals(parent, CanonicalPath(desktop), StringComparison.OrdinalIgnoreCase)) return true;
+            } catch { }
+            return false;
+        }
+
+        /// <summary>Desktop shortcuts are collected; Ctrl/reference-only mode keeps all originals.</summary>
+        public static List<string> AddToGroup(FolderGroup group, IEnumerable<string> paths, string storageDirectory, bool referencesOnly)
+        {
+            return AddToGroup(group, paths, storageDirectory, referencesOnly, GetDesktopDirectories());
+        }
+
+        internal static List<string> AddToGroup(FolderGroup group, IEnumerable<string> paths, string storageDirectory, bool referencesOnly, IEnumerable<string> desktopDirectories)
+        {
+            List<string> errors = new List<string>();
+            if (paths == null) return errors;
+            HashSet<string> processed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string path in paths) {
+                try { if (!processed.Add(CanonicalPath(path))) continue; }
+                catch { errors.AddRange(AddReferences(group, new string[] { path })); continue; }
+                if (!referencesOnly && IsDesktopShortcut(path, desktopDirectories))
+                    errors.AddRange(CollectToStorage(group, new string[] { path }, storageDirectory));
+                else errors.AddRange(AddReferences(group, new string[] { path }));
+            }
+            return errors;
+        }
+
         public static List<string> AddReferences(FolderGroup group, IEnumerable<string> paths)
         {
             List<string> errors = new List<string>();
@@ -418,10 +466,7 @@ namespace LargeFolder
         public static List<string> GetDesktopItems()
         {
             HashSet<string> result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            string[] desktops = {
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory)
-            };
+            string[] desktops = GetDesktopDirectories();
             foreach (string desktop in desktops)
             {
                 if (String.IsNullOrWhiteSpace(desktop) || !Directory.Exists(desktop)) continue;

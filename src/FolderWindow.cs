@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,7 +40,10 @@ namespace LargeFolder
         private System.Windows.Threading.DispatcherTimer dragScrollTimer;
         private Point dragViewportPoint;
         private int dragScrollDirection;
-        private static ControlTemplate itemButtonTemplate;
+        private static ControlTemplate itemButtonTemplate, darkItemButtonTemplate;
+        private static readonly string[] PresetColors = { "#EAF3EB", "#E7EFF8", "#FAF0DF", "#EFEAF7", "#F8E9ED" };
+        private bool darkCard;
+        private Brush cardInk = Ui.Ink, cardText = Ui.Brush("#2F4036"), cardMuted = Ui.Muted;
         private const string ItemDragFormat = "LargeFolder.ItemOrder.v1";
         private sealed class ItemDragData { public string GroupId; public string ItemId; }
         private sealed class DropPosition { public Button Target; public bool After; }
@@ -160,8 +163,16 @@ namespace LargeFolder
             rebuilding = true;
             var shell = new Grid { Margin = new Thickness(6) };
             var tint = Ui.Brush(Tint()).Color;
-            var restingBackground = new LinearGradientBrush(Color.FromRgb((byte)((tint.R + 765) / 4), (byte)((tint.G + 765) / 4), (byte)((tint.B + 765) / 4)), Color.FromRgb((byte)((tint.R + 255) / 2), (byte)((tint.G + 255) / 2), (byte)((tint.B + 255) / 2)), new Point(0, 0), new Point(0, 1));
-            card = new Border { CornerRadius = new CornerRadius(15), Background = restingBackground, BorderBrush = Ui.Brush("#DEE6E1"), BorderThickness = new Thickness(1), Padding = new Thickness(expanded ? 14 : 8), Cursor = Cursors.SizeAll, Effect = new DropShadowEffect { Color = Color.FromRgb(35, 56, 47), BlurRadius = 8, ShadowDepth = 1, Opacity = 0.12 } };
+            bool customTint = !PresetColors.Contains(Tint(), StringComparer.OrdinalIgnoreCase);
+            darkCard = customTint && tint.R * 0.299 + tint.G * 0.587 + tint.B * 0.114 < 135;
+            cardInk = darkCard ? Brushes.White : Ui.Ink;
+            cardText = darkCard ? Brushes.White : Ui.Brush("#2F4036");
+            cardMuted = darkCard ? Ui.Brush("#D7E1DC") : Ui.Muted;
+            Color topTint = customTint ? Color.FromRgb((byte)((tint.R * 7 + 255) / 8), (byte)((tint.G * 7 + 255) / 8), (byte)((tint.B * 7 + 255) / 8)) : Color.FromRgb((byte)((tint.R + 765) / 4), (byte)((tint.G + 765) / 4), (byte)((tint.B + 765) / 4));
+            Color bottomTint = customTint ? tint : Color.FromRgb((byte)((tint.R + 255) / 2), (byte)((tint.G + 255) / 2), (byte)((tint.B + 255) / 2));
+            var restingBackground = new LinearGradientBrush(topTint, bottomTint, new Point(0, 0), new Point(0, 1));
+            restingBackground.Opacity = 0.72;
+            card = new Border { CornerRadius = new CornerRadius(15), Background = restingBackground, BorderBrush = Ui.Brush("#A6DEE6E1"), BorderThickness = new Thickness(1), Padding = new Thickness(expanded ? 14 : 8), Cursor = Cursors.SizeAll, Effect = new DropShadowEffect { Color = Color.FromRgb(35, 56, 47), BlurRadius = 8, ShadowDepth = 1, Opacity = 0.12 } };
             card.ContextMenu = GroupMenu(); shell.Children.Add(card); Content = shell;
             dragOverlay = new Canvas { IsHitTestVisible = false };
             dropMarker = new Border { Width = 3, Height = 70, CornerRadius = new CornerRadius(1.5), Background = Ui.Accent, Visibility = Visibility.Collapsed };
@@ -175,11 +186,11 @@ namespace LargeFolder
             if (!expanded) header.Height = 22;
             header.ColumnDefinitions.Add(new ColumnDefinition()); header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var titleStack = new StackPanel();
-            var title = Ui.Text(Group.Name, expanded ? 17 : 11.5, Ui.Ink); title.FontWeight = FontWeights.SemiBold; title.TextTrimming = TextTrimming.CharacterEllipsis; title.ToolTip = Group.Name + " · " + Group.Items.Count + " 个项目" + "\n拖动标题或空白处移动，拖动边框调整大小" + (expanded ? "" : "\n单击标题展开");
+            var title = Ui.Text(Group.Name, expanded ? 17 : 11.5, cardInk); title.FontWeight = FontWeights.SemiBold; title.TextTrimming = TextTrimming.CharacterEllipsis; title.ToolTip = Group.Name + " · " + Group.Items.Count + " 个项目" + "\n拖动标题或空白处移动，拖动边框调整大小" + (expanded ? "" : "\n单击标题展开");
             titleStack.Children.Add(title); header.Children.Add(titleStack);
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            if (expanded) { var add = Ui.Button("+", ShowAddMenu, false); add.ToolTip = "添加文件或文件夹"; add.FontSize = 17; add.Padding = new Thickness(7, 0, 7, 2); add.Background = Brushes.Transparent; add.Foreground = Ui.Ink; actions.Children.Add(add); }
-            var more = Ui.Button("···", delegate { card.ContextMenu.IsOpen = true; }, false); more.ToolTip = "分组菜单（也可右键）"; more.Padding = new Thickness(5, 0, 5, 2); more.FontSize = 16; more.Background = Brushes.Transparent; more.Foreground = Ui.Ink; more.Opacity = expanded ? 1 : 0;
+            if (expanded) { var add = Ui.Button("+", ShowAddMenu, false); add.ToolTip = "整理桌面或添加入口"; add.FontSize = 17; add.Padding = new Thickness(7, 0, 7, 2); add.Background = Brushes.Transparent; add.Foreground = cardInk; actions.Children.Add(add); }
+            var more = Ui.Button("···", delegate { card.ContextMenu.IsOpen = true; }, false); more.ToolTip = "分组菜单（也可右键）"; more.Padding = new Thickness(5, 0, 5, 2); more.FontSize = 16; more.Background = Brushes.Transparent; more.Foreground = expanded ? cardInk : Ui.Ink; more.Opacity = expanded ? 1 : 0;
             if (expanded) actions.Children.Add(more);
             if (!expanded) {
                 more.Width = 18; more.Height = 18; more.Padding = new Thickness(0); more.FontSize = 14; more.HorizontalAlignment = HorizontalAlignment.Right; more.VerticalAlignment = VerticalAlignment.Center; more.Background = Ui.Brush("#F5F8F5"); Panel.SetZIndex(more, 1); header.Children.Add(more);
@@ -192,7 +203,7 @@ namespace LargeFolder
                 more.GotKeyboardFocus += delegate { more.Opacity = 1; };
                 more.LostKeyboardFocus += delegate { if (!card.IsMouseOver) more.Opacity = 0; };
             }
-            if (expanded) { var close = Ui.Button("×", Collapse, false); close.ToolTip = "收起 (Esc)"; close.FontSize = 17; close.Padding = new Thickness(7, 0, 7, 2); close.Margin = new Thickness(2, 0, 0, 0); close.Background = Brushes.Transparent; close.Foreground = Ui.Ink; actions.Children.Add(close); }
+            if (expanded) { var close = Ui.Button("×", Collapse, false); close.ToolTip = "收起 (Esc)"; close.FontSize = 17; close.Padding = new Thickness(7, 0, 7, 2); close.Margin = new Thickness(2, 0, 0, 0); close.Background = Brushes.Transparent; close.Foreground = cardInk; actions.Children.Add(close); }
             Grid.SetColumn(actions, 1); header.Children.Add(actions);
             card.PreviewMouseLeftButtonDown += delegate(object s, MouseButtonEventArgs e) {
                 suppressHeaderClick = false;
@@ -225,10 +236,15 @@ namespace LargeFolder
             if (!changed) return;
             EnsureVisible(); anchorX = Left; anchorY = Top; Group.Left = Left; Group.Top = Top; controller.Save();
         }
-        private static ControlTemplate ItemButtonTemplate()
+        private static ControlTemplate ItemButtonTemplate(bool dark)
         {
-            if (itemButtonTemplate == null) itemButtonTemplate = (ControlTemplate)XamlReader.Parse("<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='Button'><Grid><Border Background='{TemplateBinding Background}' CornerRadius='9'/><Border x:Name='hover' Background='#B0FFFFFF' CornerRadius='9' Opacity='0'/><Border x:Name='focus' BorderBrush='Transparent' BorderThickness='1' CornerRadius='9'/><ContentPresenter Margin='{TemplateBinding Padding}' HorizontalAlignment='Center' VerticalAlignment='Center'/></Grid><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='hover' Property='Opacity' Value='1'/></Trigger><Trigger Property='IsPressed' Value='True'><Setter TargetName='hover' Property='Background' Value='#DCE8DF'/></Trigger><Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='focus' Property='BorderBrush' Value='#80337557'/></Trigger><Trigger Property='IsEnabled' Value='False'><Setter Property='Opacity' Value='0.4'/></Trigger></ControlTemplate.Triggers></ControlTemplate>");
-            return itemButtonTemplate;
+            ControlTemplate cached = dark ? darkItemButtonTemplate : itemButtonTemplate;
+            if (cached != null) return cached;
+            string markup = "<ControlTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml' TargetType='Button'><Grid><Border Background='{TemplateBinding Background}' CornerRadius='9'/><Border x:Name='hover' Background='#B0FFFFFF' CornerRadius='9' Opacity='0'/><Border x:Name='focus' BorderBrush='Transparent' BorderThickness='1' CornerRadius='9'/><ContentPresenter Margin='{TemplateBinding Padding}' HorizontalAlignment='Center' VerticalAlignment='Center'/></Grid><ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='hover' Property='Opacity' Value='1'/></Trigger><Trigger Property='IsPressed' Value='True'><Setter TargetName='hover' Property='Background' Value='#DCE8DF'/></Trigger><Trigger Property='IsKeyboardFocused' Value='True'><Setter TargetName='focus' Property='BorderBrush' Value='#80337557'/></Trigger><Trigger Property='IsEnabled' Value='False'><Setter Property='Opacity' Value='0.4'/></Trigger></ControlTemplate.Triggers></ControlTemplate>";
+            if (dark) markup = markup.Replace("#B0FFFFFF", "#20FFFFFF").Replace("#DCE8DF", "#33000000").Replace("#80337557", "#B0B9D6C5");
+            var template = (ControlTemplate)XamlReader.Parse(markup);
+            if (dark) darkItemButtonTemplate = template; else itemButtonTemplate = template;
+            return template;
         }
         private void AddResizeGrips(Grid shell)
         {
@@ -325,25 +341,25 @@ namespace LargeFolder
                 var tile = new Grid { Width = 52, Height = 56 };
                 tile.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) }); tile.RowDefinitions.Add(new RowDefinition { Height = new GridLength(26) });
                 tile.Children.Add(new Image { Source = ShellIcons.Get(item.Path, 48), Width = 26, Height = 26, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center });
-                var label = Ui.Text(Ui.DisplayName(item.Path), 10, Ui.Brush("#43554A")); label.Height = 26; label.TextAlignment = TextAlignment.Center; label.TextWrapping = TextWrapping.Wrap; label.TextTrimming = TextTrimming.CharacterEllipsis; label.LineHeight = 13; label.LineStackingStrategy = LineStackingStrategy.BlockLineHeight; label.VerticalAlignment = VerticalAlignment.Top; Grid.SetRow(label, 1); tile.Children.Add(label);
+                var label = Ui.Text(Ui.DisplayName(item.Path), 10, cardText); label.Height = 26; label.TextAlignment = TextAlignment.Center; label.TextWrapping = TextWrapping.Wrap; label.TextTrimming = TextTrimming.CharacterEllipsis; label.LineHeight = 13; label.LineStackingStrategy = LineStackingStrategy.BlockLineHeight; label.VerticalAlignment = VerticalAlignment.Top; Grid.SetRow(label, 1); tile.Children.Add(label);
                 DateTime lastOpened = DateTime.MinValue;
                 var button = Ui.Button("", delegate {
                     DateTime now = DateTime.UtcNow;
                     if ((now - lastOpened).TotalMilliseconds < Forms.SystemInformation.DoubleClickTime) return;
                     lastOpened = now; OpenItem(current);
                 }, false);
-                button.Content = tile; button.Padding = new Thickness(0); button.Margin = new Thickness(2, 0, 2, 0); button.Background = Brushes.Transparent; button.Template = ItemButtonTemplate();
+                button.Content = tile; button.Padding = new Thickness(0); button.Margin = new Thickness(2, 0, 2, 0); button.Background = Brushes.Transparent; button.Template = ItemButtonTemplate(darkCard);
                 button.ToolTip = Ui.DisplayName(item.Path) + "\n" + item.Path + "\n单击直接打开"; button.ContextMenu = ItemMenu(item);
                 System.Windows.Automation.AutomationProperties.SetName(button, Ui.DisplayName(item.Path));
                 preview.Children.Add(button);
             }
             if (Group.Items.Count == 0) {
-                var empty = Ui.Button("+", ShowAddMenu, false); empty.FontSize = 24; empty.Padding = new Thickness(0); empty.Background = Brushes.Transparent; empty.Foreground = Ui.Muted; empty.ToolTip = "添加文件或文件夹，也可以直接拖入";
+                var empty = Ui.Button("+", ShowAddMenu, false); empty.FontSize = 24; empty.Padding = new Thickness(0); empty.Background = Brushes.Transparent; empty.Foreground = cardMuted; empty.ToolTip = "拖入桌面快捷方式会移入分组；按住 Ctrl 拖入仅添加入口";
                 System.Windows.Automation.AutomationProperties.SetName(empty, "添加项目"); preview.Children.Add(empty);
             }
             Grid.SetRow(preview, 2); content.Children.Add(preview);
             if (layout.HasMore) {
-                var all = Ui.Button("", Expand, false); all.Width = 28; all.Height = 20; all.Padding = new Thickness(0); all.Margin = new Thickness(0, 4, 0, 0); all.HorizontalAlignment = HorizontalAlignment.Center; all.Background = Ui.Brush("#90FFFFFF"); all.Template = ItemButtonTemplate();
+                var all = Ui.Button("", Expand, false); all.Width = 28; all.Height = 20; all.Padding = new Thickness(0); all.Margin = new Thickness(0, 4, 0, 0); all.HorizontalAlignment = HorizontalAlignment.Center; all.Background = Ui.Brush("#90FFFFFF"); all.Template = ItemButtonTemplate(darkCard);
                 all.Content = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 1,1 L 5,1 L 5,5 L 1,5 Z M 8,1 L 12,1 L 12,5 L 8,5 Z M 1,8 L 5,8 L 5,12 L 1,12 Z M 8,8 L 12,8 L 12,12 L 8,12 Z"), Fill = Ui.Accent, Width = 11, Height = 11, Stretch = Stretch.Uniform };
                 all.ToolTip = "查看全部 · " + Group.Items.Count + " 个项目";
                 System.Windows.Automation.AutomationProperties.SetName(all, "查看全部 " + Group.Items.Count + " 个项目"); Grid.SetRow(all, 3); content.Children.Add(all);
@@ -352,17 +368,17 @@ namespace LargeFolder
         }
         private void BuildExpanded()
         {
-            searchShell = new Border { CornerRadius = new CornerRadius(8), Background = Ui.Brush("#65FFFFFF"), Padding = new Thickness(9, 5, 9, 5), Margin = new Thickness(0, 0, 0, 10), Visibility = Visibility.Collapsed };
+            searchShell = new Border { CornerRadius = new CornerRadius(8), Background = Ui.Brush(darkCard ? "#18000000" : "#65FFFFFF"), Padding = new Thickness(9, 5, 9, 5), Margin = new Thickness(0, 0, 0, 10), Visibility = Visibility.Collapsed };
             var searchGrid = new Grid(); searchGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); searchGrid.ColumnDefinitions.Add(new ColumnDefinition());
-            var icon = Ui.Text("⌕", 19, Ui.Muted); icon.Margin = new Thickness(0, 0, 9, 0); searchGrid.Children.Add(icon);
-            search = new TextBox { FontSize = 12, BorderThickness = new Thickness(0), Background = Brushes.Transparent, Foreground = Ui.Ink, CaretBrush = Ui.Ink, VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "搜索此分组 (Ctrl+F)" };
+            var icon = Ui.Text("⌕", 19, cardMuted); icon.Margin = new Thickness(0, 0, 9, 0); searchGrid.Children.Add(icon);
+            search = new TextBox { FontSize = 12, BorderThickness = new Thickness(0), Background = Brushes.Transparent, Foreground = cardInk, CaretBrush = cardInk, VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "搜索此分组 (Ctrl+F)" };
             System.Windows.Automation.AutomationProperties.SetName(search, "搜索此分组");
             Grid.SetColumn(search, 1); searchGrid.Children.Add(search); searchShell.Child = searchGrid;
             Grid.SetRow(searchShell, 1); content.Children.Add(searchShell);
             itemsPanel = new WrapPanel { Orientation = Orientation.Horizontal };
             itemsScroll = new ScrollViewer { Content = itemsPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, CanContentScroll = false };
             Grid.SetRow(itemsScroll, 2); content.Children.Add(itemsScroll);
-            resultLabel = Ui.Text("", 10, Ui.Muted);
+            resultLabel = Ui.Text("", 10, cardMuted);
             search.TextChanged += delegate { if (!rebuilding) FillItems(); }; FillItems();
         }
         private void FillItems()
@@ -373,7 +389,7 @@ namespace LargeFolder
             resultLabel.Text = query.Length > 0 ? matches.Count + " / " + Group.Items.Count + " 个项目" : Group.Items.Count + " 个项目 · 双击打开";
             if (matches.Count == 0) {
                 var empty = new StackPanel { Width = Math.Max(180, ExpandedColumns() * 80), Margin = new Thickness(0, 30, 0, 15), HorizontalAlignment = HorizontalAlignment.Center };
-                var headline = Ui.Text(query.Length == 0 ? "拖入文件或文件夹" : "没有找到相关项目", 13, Ui.Ink); headline.HorizontalAlignment = HorizontalAlignment.Center; empty.Children.Add(headline);
+                var headline = Ui.Text(query.Length == 0 ? "拖入文件或文件夹" : "没有找到相关项目", 13, cardInk); headline.HorizontalAlignment = HorizontalAlignment.Center; empty.Children.Add(headline);
                 itemsPanel.Children.Add(empty); FitExpandedHeight(); return;
             }
             foreach (var item in matches) {
@@ -381,8 +397,8 @@ namespace LargeFolder
                 var tile = new Grid { Width = 66, Height = 72 };
                 tile.RowDefinitions.Add(new RowDefinition { Height = new GridLength(42) }); tile.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
                 tile.Children.Add(new Image { Source = ShellIcons.Get(item.Path, 48), Width = 34, Height = 34, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center });
-                var label = Ui.Text(Ui.DisplayName(item.Path), 11, Ui.Brush("#43554A")); label.Height = 30; label.TextAlignment = TextAlignment.Center; label.TextWrapping = TextWrapping.Wrap; label.TextTrimming = TextTrimming.CharacterEllipsis; label.LineHeight = 15; label.LineStackingStrategy = LineStackingStrategy.BlockLineHeight; label.VerticalAlignment = VerticalAlignment.Top; Grid.SetRow(label, 1); tile.Children.Add(label);
-                var button = Ui.Button("", delegate { }, false); button.Width = 80; button.Height = 86; button.Padding = new Thickness(7); button.Background = Brushes.Transparent; button.Content = tile; button.Template = ItemButtonTemplate();
+                var label = Ui.Text(Ui.DisplayName(item.Path), 11, cardText); label.Height = 30; label.TextAlignment = TextAlignment.Center; label.TextWrapping = TextWrapping.Wrap; label.TextTrimming = TextTrimming.CharacterEllipsis; label.LineHeight = 15; label.LineStackingStrategy = LineStackingStrategy.BlockLineHeight; label.VerticalAlignment = VerticalAlignment.Top; Grid.SetRow(label, 1); tile.Children.Add(label);
+                var button = Ui.Button("", delegate { }, false); button.Width = 80; button.Height = 86; button.Padding = new Thickness(7); button.Background = Brushes.Transparent; button.Content = tile; button.Template = ItemButtonTemplate(darkCard);
                 button.ToolTip = item.Path + (string.IsNullOrEmpty(item.OriginalPath) ? "" : "\n原位置：" + item.OriginalPath) + "\n按住拖动可调整顺序"; button.ContextMenu = ItemMenu(item); button.Tag = item;
                 System.Windows.Automation.AutomationProperties.SetName(button, Ui.DisplayName(item.Path));
                 bool itemPressed = false; Point itemDown = new Point();
@@ -411,6 +427,7 @@ namespace LargeFolder
             menu.Items.Add(Ui.Menu("打开", delegate { OpenItem(item); }));
             menu.Items.Add(Ui.Menu("在资源管理器中显示", delegate { try { ShellIcons.Reveal(item.Path); } catch (Exception ex) { MessageBox.Show(this, ex.Message); } }));
             menu.Items.Add(Ui.Menu("复制完整路径", delegate { Clipboard.SetText(item.Path); }));
+            if (FileActions.IsDesktopShortcut(item.Path)) menu.Items.Add(Ui.Menu("收纳这个桌面快捷方式", delegate { WithModal(delegate { CollectPaths(new string[] { item.Path }); }); }));
             if (!string.IsNullOrEmpty(item.OriginalPath)) menu.Items.Add(Ui.Menu("还原到原位置", delegate { WithModal(delegate { string error = FileActions.Restore(item); controller.Save(); RefreshItems(); if (!string.IsNullOrEmpty(error)) MessageBox.Show(this, error, "还原未完成"); }); }));
             var locate = new MenuItem { Header = "重新定位" };
             locate.Items.Add(Ui.Menu("选择文件 / 快捷方式…", delegate { Relocate(item, false); }));
@@ -428,14 +445,20 @@ namespace LargeFolder
         private ContextMenu GroupMenu()
         {
             var menu = new ContextMenu();
-            menu.Items.Add(Ui.Menu("添加文件 / 快捷方式…", AddFiles)); menu.Items.Add(Ui.Menu("添加文件夹…", AddFolder)); menu.Items.Add(Ui.Menu("整理桌面…", ImportDesktop));
+            menu.Items.Add(Ui.Menu("整理桌面（移入分组）…", ImportDesktop));
+            int desktopShortcutCount = Group.Items.Count(i => FileActions.IsDesktopShortcut(i.Path));
+            if (desktopShortcutCount > 0) menu.Items.Add(Ui.Menu("收纳本组桌面快捷方式（" + desktopShortcutCount + " 项）", CollectGroupDesktopShortcuts));
+            menu.Items.Add(Ui.Menu("添加文件 / 快捷方式…", AddFiles)); menu.Items.Add(Ui.Menu("添加文件夹入口…", AddFolder));
+            menu.Items.Add(Ui.Menu("仅添加文件 / 快捷方式入口…", delegate { PickFiles(true); }));
             menu.Items.Add(Ui.Menu("搜索此分组 (Ctrl+F)", ShowSearch));
             menu.Items.Add(Ui.Menu("恢复默认大小", ResetCardSize));
             menu.Items.Add(new Separator());
             menu.Items.Add(Ui.Menu("新建分组…", delegate { WithModal(delegate { controller.NewGroup(this); }); }));
             menu.Items.Add(Ui.Menu("重命名分组…", Rename));
-            var colors = new MenuItem { Header = "分组颜色" }; string[] names = { "鼠尾草", "雾蓝", "奶杏", "淡紫", "柔粉" }; string[] values = { "#EAF3EB", "#E7EFF8", "#FAF0DF", "#EFEAF7", "#F8E9ED" };
-            for (int i = 0; i < names.Length; i++) { string color = values[i]; var m = Ui.Menu(names[i], delegate { Group.Color = color; controller.Save(); Build(); }); m.Icon = new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(4), Background = Ui.Brush(color), BorderBrush = Ui.Brush("#BEC9C0"), BorderThickness = new Thickness(1) }; colors.Items.Add(m); } menu.Items.Add(colors);
+            var colors = new MenuItem { Header = "分组颜色" }; string[] names = { "鼠尾草", "雾蓝", "奶杏", "淡紫", "柔粉" };
+            for (int i = 0; i < names.Length; i++) { string color = PresetColors[i]; var m = Ui.Menu(names[i], delegate { SetGroupColor(color); }); m.IsChecked = string.Equals(Tint(), color, StringComparison.OrdinalIgnoreCase); m.Icon = new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(4), Background = Ui.Brush(color), BorderBrush = Ui.Brush("#BEC9C0"), BorderThickness = new Thickness(1) }; colors.Items.Add(m); }
+            colors.Items.Add(new Separator());
+            var customColor = Ui.Menu("自定义颜色…", ChooseGroupColor); customColor.ToolTip = "打开调色盘，自由选择颜色；当前 " + Tint(); customColor.Icon = new Border { Width = 13, Height = 13, CornerRadius = new CornerRadius(4), Background = Ui.Brush(Tint()), BorderBrush = Ui.Brush("#BEC9C0"), BorderThickness = new Thickness(1) }; colors.Items.Add(customColor); menu.Items.Add(colors);
             menu.Items.Add(Ui.Menu("按名称排序", delegate { Group.Items = Group.Items.OrderBy(i => Ui.DisplayName(i.Path), StringComparer.CurrentCultureIgnoreCase).ToList(); controller.Save(); RefreshItems(); }));
             var blur = new MenuItem { Header = "点击其他窗口自动收起", IsCheckable = true, IsChecked = controller.Data.CloseOnBlur }; blur.Click += delegate { controller.Data.CloseOnBlur = blur.IsChecked; controller.Save(); }; menu.Items.Add(blur);
             var top = new MenuItem { Header = "始终置顶", IsCheckable = true, IsChecked = controller.Data.AlwaysOnTop }; top.Click += delegate { controller.SetTopmost(top.IsChecked); }; menu.Items.Add(top);
@@ -445,11 +468,27 @@ namespace LargeFolder
             menu.Items.Add(Ui.Menu("删除此分组…", delegate { WithModal(delegate { controller.DeleteGroup(this); }); }));
             menu.Items.Add(Ui.Menu("退出程序", controller.Exit)); return menu;
         }
-        private void ShowAddMenu() { var menu = new ContextMenu(); menu.Items.Add(Ui.Menu("文件 / 快捷方式…", AddFiles)); menu.Items.Add(Ui.Menu("文件夹…", AddFolder)); menu.Items.Add(Ui.Menu("从桌面选择…", ImportDesktop)); menu.PlacementTarget = card; menu.Placement = PlacementMode.MousePoint; menu.IsOpen = true; }
+        private void ShowAddMenu() { var menu = new ContextMenu(); menu.Items.Add(Ui.Menu("整理桌面（移入分组）…", ImportDesktop)); menu.Items.Add(Ui.Menu("文件 / 快捷方式…", AddFiles)); menu.Items.Add(Ui.Menu("文件夹入口…", AddFolder)); menu.Items.Add(Ui.Menu("仅添加入口（不移动）…", delegate { PickFiles(true); })); menu.PlacementTarget = card; menu.Placement = PlacementMode.MousePoint; menu.IsOpen = true; }
         private void WithModal(Action action) { modal = true; try { action(); } finally { modal = false; } }
-        private void AddFiles() { WithModal(delegate { var picker = new OpenFileDialog { Title = "选择文件或快捷方式（仅添加入口）", Multiselect = true, CheckFileExists = true, DereferenceLinks = false, Filter = "所有文件|*.*" }; if (picker.ShowDialog(this) == true) AddPaths(picker.FileNames); }); }
+        private sealed class ColorDialogOwner : Forms.IWin32Window
+        {
+            public IntPtr Handle { get; private set; }
+            public ColorDialogOwner(Window window) { Handle = new System.Windows.Interop.WindowInteropHelper(window).Handle; }
+        }
+        private void SetGroupColor(string color) { Group.Color = color; controller.Save(); Build(); }
+        private void ChooseGroupColor() { WithModal(delegate {
+            Color current = Ui.Brush(Tint()).Color;
+            using (var picker = new Forms.ColorDialog { FullOpen = true, AllowFullOpen = true, AnyColor = true, SolidColorOnly = true, Color = System.Drawing.Color.FromArgb(current.R, current.G, current.B) }) {
+                if (picker.ShowDialog(new ColorDialogOwner(this)) == Forms.DialogResult.OK)
+                    SetGroupColor("#" + picker.Color.R.ToString("X2") + picker.Color.G.ToString("X2") + picker.Color.B.ToString("X2"));
+            }
+        }); }
+        private void AddFiles() { PickFiles(false); }
+        private void PickFiles(bool referencesOnly) { WithModal(delegate { var picker = new OpenFileDialog { Title = referencesOnly ? "仅添加入口（原位置不变）" : "桌面快捷方式会移入分组，其他文件只添加入口", Multiselect = true, CheckFileExists = true, DereferenceLinks = false, Filter = "所有文件|*.*" }; if (picker.ShowDialog(this) == true) AddPaths(picker.FileNames, referencesOnly); }); }
         private void AddFolder() { WithModal(delegate { using (var picker = new Forms.FolderBrowserDialog { Description = "选择文件夹（仅添加入口，不移动原件）", ShowNewFolderButton = true }) if (picker.ShowDialog() == Forms.DialogResult.OK) AddPaths(new[] { picker.SelectedPath }); }); }
-        private void AddPaths(IEnumerable<string> paths) { var errors = FileActions.AddReferences(Group, paths); controller.Save(); RefreshItems(); controller.ReportErrors(this, errors); }
+        private void AddPaths(IEnumerable<string> paths, bool referencesOnly = false) { var errors = FileActions.AddToGroup(Group, paths, controller.Store.StorageDirectory, referencesOnly); controller.Save(); RefreshItems(); controller.ReportErrors(this, errors); }
+        private void CollectPaths(IEnumerable<string> paths) { var errors = FileActions.CollectToStorage(Group, paths, controller.Store.StorageDirectory); controller.Save(); RefreshItems(); controller.ReportErrors(this, errors); }
+        private void CollectGroupDesktopShortcuts() { WithModal(delegate { CollectPaths(Group.Items.Where(i => FileActions.IsDesktopShortcut(i.Path)).Select(i => i.Path).ToArray()); }); }
         private void Relocate(ItemEntry item, bool folder) { WithModal(delegate {
             string path = null;
             if (folder) { using (var picker = new Forms.FolderBrowserDialog { Description = "重新选择这个项目的当前位置", ShowNewFolderButton = false }) if (picker.ShowDialog() == Forms.DialogResult.OK) path = picker.SelectedPath; }
@@ -536,7 +575,13 @@ namespace LargeFolder
                 ShowDropIndicator(position); if (position != null) UpdateDragScroll(e); e.Handled = true; return;
             }
             ClearDropIndicator();
-            e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true;
+            if (e.Data.GetDataPresent(DataFormats.FileDrop)) {
+                var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
+                bool referenceOnly = (e.KeyStates & DragDropKeyStates.ControlKey) != 0;
+                e.Effects = !referenceOnly && paths != null && paths.Any(FileActions.IsDesktopShortcut) ? DragDropEffects.Move : DragDropEffects.Link;
+                if ((e.Effects & e.AllowedEffects) == 0) e.Effects = (e.AllowedEffects & DragDropEffects.Copy) != 0 ? DragDropEffects.Copy : DragDropEffects.None;
+            } else e.Effects = DragDropEffects.None;
+            e.Handled = true;
         }
         private void OnDrop(object sender, DragEventArgs e)
         {
@@ -548,7 +593,14 @@ namespace LargeFolder
                 e.Effects = position == null ? DragDropEffects.None : DragDropEffects.Move; e.Handled = true; return;
             }
             ClearDropIndicator();
-            if (e.Data.GetDataPresent(DataFormats.FileDrop)) AddPaths((string[])e.Data.GetData(DataFormats.FileDrop)); e.Handled = true;
+            if (e.Data.GetDataPresent(DataFormats.FileDrop)) {
+                bool referenceOnly = (e.KeyStates & DragDropKeyStates.ControlKey) != 0;
+                var paths = (string[])e.Data.GetData(DataFormats.FileDrop);
+                WithModal(delegate { AddPaths(paths, referenceOnly); });
+                // Collection is handled by this application; the drag source must not remove files itself.
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
         }
         private void OnKey(object sender, KeyEventArgs e)
         {
