@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="350" viewBox="0 0 900 350">
+<defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#fbfdfb"/><stop offset="1" stop-color="#eaf3ec"/></linearGradient><filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dy="4" stdDeviation="8" flood-color="#23382f" flood-opacity=".1"/></filter><g id="folder"><path d="M0 8Q0 4 4 4H15L20 9H39Q43 9 43 13V33Q43 37 39 37H4Q0 37 0 33Z" fill="#edb938"/><path d="M0 14Q0 11 4 11H39Q43 11 43 15V33Q43 37 39 37H4Q0 37 0 33Z" fill="#ffcf54"/></g></defs>
+<rect width="900" height="350" rx="20" fill="#f6f8f6"/>
+<g font-family="Segoe UI, Microsoft YaHei, sans-serif" fill="#23382f">
+<text x="40" y="44" font-size="23" font-weight="600">大文件夹 · LargeFolder</text><text x="40" y="71" font-size="13" fill="#74847b">让常用文件触手可及，给桌面留出空间。</text>
+<rect x="60" y="105" width="180" height="208" rx="20" fill="url(#bg)" stroke="#dbe5de" filter="url(#shadow)"/>
+<text x="78" y="135" font-size="15" font-weight="600">我的常用</text><path d="M207 135l12-12m-10 0h10v10" stroke="#607467" fill="none" stroke-width="1.5"/>
+<use href="#folder" x="88" y="151"/><use href="#folder" x="165" y="151"/><use href="#folder" x="88" y="214"/><use href="#folder" x="165" y="214"/>
+<g text-anchor="middle" font-size="12"><text x="110" y="207">工作资料</text><text x="187" y="207">学习笔记</text><text x="110" y="270">项目文档</text><text x="187" y="270">常用工具</text></g>
+<path d="M145 287h4v4h-4zM153 287h4v4h-4zM145 295h4v4h-4zM153 295h4v4h-4z" fill="#337557"/>
+<path d="M290 209H355m-12-9 12 9-12 9" stroke="#91a799" stroke-width="2" fill="none"/><text x="323" y="242" text-anchor="middle" font-size="13" fill="#74847b">点击展开</text>
+<rect x="405" y="105" width="435" height="208" rx="20" fill="url(#bg)" stroke="#dbe5de" filter="url(#shadow)"/>
+<text x="425" y="137" font-size="18" font-weight="600">我的常用</text><text x="788" y="138" font-size="20">+　×</text>
+<g text-anchor="middle" font-size="12"><use href="#folder" x="444" y="160"/><use href="#folder" x="545" y="160"/><use href="#folder" x="646" y="160"/><use href="#folder" x="747" y="160"/><text x="465" y="214">工作资料</text><text x="566" y="214">学习笔记</text><text x="667" y="214">项目文档</text><text x="768" y="214">常用工具</text><use href="#folder" x="444" y="231"/><use href="#folder" x="545" y="231"/><text x="465" y="285">图片素材</text><text x="566" y="285">更多文件</text></g>
+<text x="40" y="335" font-size="11" fill="#87958b">界面示意 · 单击打开 / 拖动排序 / 自由移动 / 边缘缩放</text>
+</g></svg>
