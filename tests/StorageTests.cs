@@ -41,6 +41,7 @@ public static class StorageTests
             TestConfiguration(root);
             TestFileOperations(root, crossRoot);
             TestMoveJournal(root, crossRoot);
+            TestDesktopShortcutCollection(root);
             Console.WriteLine("All " + checks + " checks passed. Only the two printed sandboxes were modified; the real desktop and application config were not changed.");
             return 0;
         }
@@ -200,6 +201,48 @@ public static class StorageTests
         Check(records[records.Count - 2].Phase == "started" && records[records.Count - 2].Source == locked &&
             records[records.Count - 1].Phase == "completed", "next record starts on a fresh line after a truncated journal tail");
         Check(FileActions.Restore(group.Items[group.Items.Count - 1]) == null, "journal safety fixture restored");
+    }
+
+    private static void TestDesktopShortcutCollection(string root)
+    {
+        string fixture = Path.Combine(root, "desktop-shortcuts");
+        string desktop = Path.Combine(fixture, "Desktop");
+        string publicDesktop = Path.Combine(fixture, "PublicDesktop");
+        string outside = Path.Combine(fixture, "Desktop-backup");
+        Directory.CreateDirectory(desktop); Directory.CreateDirectory(publicDesktop); Directory.CreateDirectory(outside);
+        Directory.CreateDirectory(Path.Combine(desktop, "nested"));
+        string[] desktopRoots = { desktop, publicDesktop };
+        string shortcut = Path.Combine(desktop, "App.lnk");
+        string website = Path.Combine(publicDesktop, "Site.URL");
+        string externalLink = Path.Combine(outside, "Other.lnk");
+        string nestedLink = Path.Combine(desktop, "nested", "Nested.lnk");
+        string executable = Path.Combine(desktop, "Portable.exe");
+        string document = Path.Combine(desktop, "Note.txt");
+        string target = Path.Combine(fixture, "application.exe");
+        File.WriteAllText(target, "application stays here");
+        File.WriteAllText(shortcut, "target=" + target); File.WriteAllText(website, "[InternetShortcut]\r\nURL=https://example.invalid/");
+        File.WriteAllText(externalLink, "external"); File.WriteAllText(nestedLink, "nested");
+        File.WriteAllText(executable, "portable program"); File.WriteAllText(document, "document");
+        string fakeLinkFolder = Path.Combine(desktop, "Folder.lnk"); Directory.CreateDirectory(fakeLinkFolder);
+        Check(FileActions.IsDesktopShortcut(shortcut, desktopRoots) && FileActions.IsDesktopShortcut(website, desktopRoots), "personal and public desktop shortcut types are recognized case-insensitively");
+        Check(!FileActions.IsDesktopShortcut(externalLink, desktopRoots) && !FileActions.IsDesktopShortcut(nestedLink, desktopRoots), "desktop siblings and nested folders are not auto-collected");
+        Check(!FileActions.IsDesktopShortcut(executable, desktopRoots) && !FileActions.IsDesktopShortcut(fakeLinkFolder, desktopRoots) && !FileActions.IsDesktopShortcut(Path.Combine(desktop, "missing.lnk"), desktopRoots), "executables, disguised directories and missing files are not desktop shortcuts");
+        DataStore store = new DataStore(Path.Combine(fixture, "app"));
+        FolderGroup group = DataStore.NewGroup("agent", 0);
+        var errors = FileActions.AddToGroup(group, new string[] { document, shortcut, shortcut.ToUpperInvariant(), website, nestedLink, executable, externalLink }, store.StorageDirectory, false, desktopRoots);
+        Check(errors.Count == 0 && group.Items.Count == 6, "mixed add auto-collects shortcuts and deduplicates repeated input without errors");
+        Check(group.Items[0].Path == document && group.Items[1].OriginalPath == shortcut && group.Items[2].OriginalPath == website && group.Items[3].Path == nestedLink, "mixed add preserves selection order and records original shortcut paths");
+        Check(!File.Exists(shortcut) && !File.Exists(website) && File.Exists(group.Items[1].Path) && File.Exists(group.Items[2].Path), "collected shortcuts disappear from both desktop directories and remain accessible in storage");
+        Check(File.ReadAllText(group.Items[1].Path) == "target=" + target && File.ReadAllText(target) == "application stays here", "shortcut bytes are preserved and the application target is untouched");
+        Check(File.Exists(document) && File.Exists(executable) && File.Exists(nestedLink) && File.Exists(externalLink), "ordinary files and non-desktop shortcuts retain their original locations");
+        string referenceLink = Path.Combine(desktop, "Reference.lnk"); File.WriteAllText(referenceLink, "keep desktop icon");
+        Check(FileActions.AddToGroup(group, new string[] { referenceLink }, store.StorageDirectory, true, desktopRoots).Count == 0 && File.Exists(referenceLink) && group.Items[6].OriginalPath == null, "reference-only mode keeps a desktop shortcut in place");
+        ItemEntry reference = group.Items[6]; string referenceId = reference.Id;
+        Check(FileActions.AddToGroup(group, new string[] { referenceLink }, store.StorageDirectory, false, desktopRoots).Count == 0 && Object.ReferenceEquals(group.Items[6], reference) && reference.Id == referenceId && group.Items.Count == 7 && !File.Exists(referenceLink), "existing desktop references convert to collection without duplicate entries or order changes");
+        Check(FileActions.Restore(reference) == null && File.ReadAllText(referenceLink) == "keep desktop icon" && reference.OriginalPath == null, "an auto-collected shortcut can be restored to its desktop location");
+        store.Save(new AppData { Groups = new List<FolderGroup> { group } });
+        AppData loaded = store.Load();
+        Check(loaded.Groups[0].Items[1].OriginalPath == shortcut && loaded.Groups[0].Items[6].Id == referenceId, "auto-collection and restored reference metadata survive persistence");
     }
 
     private static List<MoveJournalRecord> ReadJournal(string path)
