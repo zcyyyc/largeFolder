@@ -1,0 +1,27 @@
+# Personal configuration and collected original files
+/data/
+/storage/
+
+# Local build / distribution output
+/LargeFolder.exe
+/dist/
+*.dll
+*.pdb
+*.lnk
+*.log
+*.bak
+.vs/
+bin/
+obj/
+
+# Test fixtures, local reports and backups: track only reusable test sources
+/tests/*
+!/tests/*.cs
+!/tests/*.ps1
+
+# OS / editor files
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.user
+*.suo
